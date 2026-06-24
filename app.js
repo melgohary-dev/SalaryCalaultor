@@ -1,70 +1,50 @@
-let dateFrom = document.querySelector("#startDate"),
-  dateTo = document.querySelector("#endDate"),
-  Name = document.querySelector("#name"),
-  NumberOfWorkHours = document.querySelector("#NumberOfWorkHours"),
-  Salary = document.querySelector("#Salary"),
-  WorkedHours = document.querySelector("#WorkedHours"),
-  SpendTime = document.querySelector("#SpendTime"),
-  btnCopy = document.querySelector("#btnCopy"),
-  resultDiv = document.querySelector("#result"),
-  holidays = document.querySelectorAll(".holiday");
+/** Helpers */
+const formatCurrency = (v) => (Math.round(v * 100) / 100).toFixed(2);
 
-let days = {
-  Sunday: 0,
-  Monday: 1,
-  Tuesday: 2,
-  Wednesday: 3,
-  Thursday: 4,
-  Friday: 5,
-  Saturday: 6,
+const MS_PER_DAY = 86400000;
+const WEEKS_PER_YEAR = 52;
+const AVG_DAYS_PER_MONTH = 365.25 / 12;
+
+/** DOM refs */
+const dateFrom = document.querySelector("#startDate");
+const dateTo = document.querySelector("#endDate");
+const nameInput = document.querySelector("#name");
+const workHoursInput = document.querySelector("#NumberOfWorkHours");
+const salaryInput = document.querySelector("#Salary");
+const workedHoursInput = document.querySelector("#WorkedHours");
+const spendTimeInput = document.querySelector("#SpendTime");
+const copyBtn = document.querySelector("#btnCopy");
+const cardsContainer = document.querySelector("#cards-container");
+const holidayBtns = document.querySelectorAll(".holiday");
+const salaryModeBtns = document.querySelectorAll(".salary-mode");
+
+const dayIndex = {
+  Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+  Thursday: 4, Friday: 5, Saturday: 6,
 };
 
-let holidaysObject = {
-  0: false,
-  1: false,
-  2: false,
-  3: false,
-  4: false,
-  5: true,
-  6: true,
-};
+/** State */
+let holidayMap = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: true, 6: true };
+let report = null;
+let salaryMode = "hour";
 
-const calculateDayNumber = (startDate, endDate, givenDay) => {
-  startDate = new Date(startDate);
-  endDate = new Date(endDate);
-  let numberOfDates = 0;
-
-  while (startDate < endDate) {
-    if (startDate.getDay() === givenDay) {
-      numberOfDates++;
-    }
-    startDate.setDate(startDate.getDate() + 1);
+/** Count occurrences of a given weekday between two dates */
+function countWeekday(startDate, endDate, targetDay) {
+  let count = 0;
+  let cur = new Date(startDate);
+  const end = new Date(endDate);
+  while (cur < end) {
+    if (cur.getDay() === targetDay) count++;
+    cur.setDate(cur.getDate() + 1);
   }
+  return count;
+}
 
-  return numberOfDates;
-};
-
-let Report;
-
-const getDaysDetils = ({
-  workHours,
-  holiDays,
-  Salary,
-  workedHours,
-  spendTime,
-  name,
-}) => {
+/** Build the report object */
+function getDaysDetails({ from, to, workHours, holidays, Salary, workedHours, spendTime, name }) {
   let result = {};
-
-  for (let key in days) {
-    result[key] = {};
-
-    result[key].daysNumber = calculateDayNumber(
-      dateFrom.value,
-      dateTo.value,
-      days[key]
-    );
-    result[key].value = days[key];
+  for (let key in dayIndex) {
+    result[key] = countWeekday(from, to, dayIndex[key]);
   }
 
   let restDays = 0;
@@ -72,151 +52,228 @@ const getDaysDetils = ({
   let allDays = 0;
 
   for (let key in result) {
-    if (~holiDays.indexOf(result[key].value)) {
-      restDays += result[key].daysNumber;
+    if (holidays.includes(dayIndex[key])) {
+      restDays += result[key];
     } else {
-      workDays += result[key].daysNumber;
+      workDays += result[key];
     }
-    allDays += result[key].daysNumber;
-    result[key] = result[key].daysNumber;
+    allDays += result[key];
   }
 
-  let sholdWork = workHours * workDays;
+  let shouldWork = workHours * workDays;
 
-  // let HourSalary = +Salary / +sholdWork;
-  let ShouldSalary = +Salary * +sholdWork;
+  let workDaysPerWeek = 0;
+  for (let key in dayIndex) {
+    if (!holidays.includes(dayIndex[key])) workDaysPerWeek++;
+  }
 
-  let YourSalary = (+workedHours - +spendTime) * +Salary;
+  let hourlyRate;
+  let yearlySalary;
+  let baseSalary;
+  let overtimeHours = +workedHours - +spendTime - +shouldWork;
 
-  let OverTime = +workedHours - +spendTime - +sholdWork;
+  if (salaryMode === "month") {
+    let monthlySalary = +Salary;
+    yearlySalary = monthlySalary * 12;
+    hourlyRate = yearlySalary / (WEEKS_PER_YEAR * workDaysPerWeek * (+workHours));
 
-  let OverTimeSalary = +OverTime * +Salary;
+    let calendarDays = Math.round((new Date(to) - new Date(from)) / MS_PER_DAY);
+    baseSalary = monthlySalary * (calendarDays / AVG_DAYS_PER_MONTH);
+  } else {
+    hourlyRate = +Salary;
+    yearlySalary = hourlyRate * workDaysPerWeek * (+workHours) * WEEKS_PER_YEAR;
+    baseSalary = hourlyRate * +shouldWork;
+  }
 
-  let theReturned = {
-    name: name,
-    duration: {
-      from: dateFrom.value,
-      to: dateTo.value,
-    },
+  let overtimeSalary = overtimeHours * hourlyRate;
+  let totalSalary = (Math.round(baseSalary * 100) + Math.round(overtimeSalary * 100)) / 100;
+
+  report = {
+    name,
+    duration: { from, to },
     daysDetails: { ...result },
     daysCount: `${allDays} day`,
     holiDays: `${restDays} day`,
     workDays: `${workDays} day`,
-    hoursShouldWork: `${sholdWork} Hours`,
+    hoursShouldWork: `${shouldWork} Hours`,
     workedHours: `${workedHours} Hours`,
     spentTime: `${spendTime} Hours`,
-    overTime: `${OverTime} Hours`,
-    overTimeSalary: `${OverTimeSalary} L.E`,
-    hourSalary: `${Salary} L.E`,
-    shouldSalary: `${ShouldSalary} L.E`,
-    yourSalary: `${YourSalary} L.E`,
+    overTime: `${overtimeHours} Hours`,
+    overTimeSalary: overtimeSalary,
+    hourSalary: hourlyRate,
+    yearlySalary,
+    shouldSalary: baseSalary,
+    yourSalary: +totalSalary,
   };
 
-  Report = theReturned;
-  return theReturned;
-};
+  return report;
+}
 
-const trigerdFunction = () => {
-  let holis = [];
-  
-  for (const key in holidaysObject) {
-    if (holidaysObject[key]) {
-      holis.push(+key);
-    }
-  };
-
-  console.log(holis);
+function calculate() {
+  let holidays = [];
+  for (const key in holidayMap) {
+    if (holidayMap[key]) holidays.push(Number(key));
+  }
 
   if (
-    NumberOfWorkHours.value &&
-    Salary.value &&
-    WorkedHours.value &&
-    SpendTime.value &&
-    Name.value
+    workHoursInput.value &&
+    salaryInput.value &&
+    workedHoursInput.value &&
+    spendTimeInput.value &&
+    nameInput.value
   ) {
-    resultDiv.innerHTML = JSON.stringify(
-      getDaysDetils({
-        workHours: NumberOfWorkHours.value,
-        holiDays: holis,
-        Salary: Salary.value,
-        workedHours: WorkedHours.value,
-        spendTime: SpendTime.value,
-        name: Name.value,
-      }),
-      null,
-      "\t"
-    );
+    let data = getDaysDetails({
+      from: dateFrom.value,
+      to: dateTo.value,
+      workHours: workHoursInput.value,
+      holidays,
+      Salary: salaryInput.value,
+      workedHours: workedHoursInput.value,
+      spendTime: spendTimeInput.value,
+      name: nameInput.value,
+    });
+    renderCards(data);
   }
-};
+}
 
-dateFrom.addEventListener("change", (e) => {
-  trigerdFunction();
-});
-
-dateTo.addEventListener("change", (e) => {
-  trigerdFunction();
-});
-
-NumberOfWorkHours.addEventListener("keyup", (e) => {
-  trigerdFunction();
-});
-
-Salary.addEventListener("keyup", (e) => {
-  trigerdFunction();
-});
-
-WorkedHours.addEventListener("keyup", (e) => {
-  trigerdFunction();
-});
-
-SpendTime.addEventListener("keyup", (e) => {
-  trigerdFunction();
-});
-
-Name.addEventListener("keyup", (e) => {
-  trigerdFunction();
-});
-
-const copy = (str) => {
-  const el = document.createElement("textarea");
-  el.value = str;
-  el.setAttribute("readonly", "");
-  el.style.position = "absolute";
-  el.style.left = "-9999px";
-  document.body.appendChild(el);
-  const selected =
-    document.getSelection().rangeCount > 0
-      ? document.getSelection().getRangeAt(0)
-      : false;
-  el.select();
-  document.execCommand("copy");
-  document.body.removeChild(el);
-  if (selected) {
-    document.getSelection().removeAllRanges();
-    document.getSelection().addRange(selected);
+/** Render result as visual cards */
+function renderCards(data) {
+  let dayBadges = "";
+  for (let day in data.daysDetails) {
+    let count = data.daysDetails[day];
+    dayBadges += `<span class="day-badge ${count > 0 ? "active" : ""}">${day.slice(0, 3)}: ${count}</span>`;
   }
-};
 
-btnCopy.addEventListener("click", (e) => {
-  if (Report) {
-    copy((resultDiv.innerHTML = JSON.stringify(Report, null, "\t")));
+  const cards = [
+    `
+    <div class="card">
+      <div class="card-header">Employee</div>
+      <div class="card-body">
+        <div class="card-row"><span class="card-label">Name</span><span class="card-value">${data.name}</span></div>
+        <div class="card-row"><span class="card-label">Period</span><span class="card-value">${data.duration.from} \u2192 ${data.duration.to}</span></div>
+      </div>
+    </div>
+    `,
+    `
+    <div class="card">
+      <div class="card-header">Days Breakdown</div>
+      <div class="card-body">
+        <div class="card-row"><span class="card-label">Work Days</span><span class="card-value">${data.workDays}</span></div>
+        <div class="card-row"><span class="card-label">Holidays</span><span class="card-value">${data.holiDays}</span></div>
+        <div class="card-row"><span class="card-label">Total</span><span class="card-value">${data.daysCount}</span></div>
+        <div class="card-divider"></div>
+        <div class="card-row"><span class="card-label">Per Day</span><span class="card-value"><span class="days-detail">${dayBadges}</span></span></div>
+      </div>
+    </div>
+    `,
+    `
+    <div class="card">
+      <div class="card-header">Hours</div>
+      <div class="card-body">
+        <div class="card-row"><span class="card-label">Should Work</span><span class="card-value">${data.hoursShouldWork}</span></div>
+        <div class="card-row"><span class="card-label">Worked</span><span class="card-value">${data.workedHours}</span></div>
+        <div class="card-row"><span class="card-label">Spent Time</span><span class="card-value">${data.spentTime}</span></div>
+        <div class="card-row"><span class="card-label">Overtime</span><span class="card-value">${data.overTime}</span></div>
+      </div>
+    </div>
+    `,
+    `
+    <div class="card card-highlight">
+      <div class="card-header">Salary</div>
+      <div class="card-body">
+        <div class="card-row"><span class="card-label">Hourly Rate</span><span class="card-value">${formatCurrency(data.hourSalary)} L.E</span></div>
+        <div class="card-row"><span class="card-label">Yearly</span><span class="card-value">${formatCurrency(data.yearlySalary)} L.E</span></div>
+        <div class="card-divider"></div>
+        <div class="card-row"><span class="card-label">Should Earn</span><span class="card-value">${formatCurrency(data.shouldSalary)} L.E</span></div>
+        <div class="card-row"><span class="card-label">Overtime Pay</span><span class="card-value">${formatCurrency(data.overTimeSalary)} L.E</span></div>
+        <div class="card-divider"></div>
+        <div class="card-row card-total"><span class="card-label">Your Salary</span><span class="card-value">${formatCurrency(data.yourSalary)} L.E</span></div>
+      </div>
+    </div>
+    `,
+  ];
 
-    btnCopy.classList.add("success");
-    setTimeout(() => {
-      btnCopy.classList.remove("success");
-    }, 1000);
+  cardsContainer.innerHTML = cards.join("");
+}
+
+/** Plain-text summary for clipboard copy */
+function formatTextReport(data) {
+  return [
+    `Name: ${data.name}`,
+    `Period: ${data.duration.from} \u2192 ${data.duration.to}`,
+    "",
+    "--- Days ---",
+    `Work Days: ${data.workDays}`,
+    `Holidays: ${data.holiDays}`,
+    `Total: ${data.daysCount}`,
+    "",
+    "--- Hours ---",
+    `Should Work: ${data.hoursShouldWork}`,
+    `Worked: ${data.workedHours}`,
+    `Spent Time: ${data.spentTime}`,
+    `Overtime: ${data.overTime}`,
+    "",
+    "--- Salary ---",
+    `Hourly Rate: ${formatCurrency(data.hourSalary)} L.E`,
+    `Yearly Salary: ${formatCurrency(data.yearlySalary)} L.E`,
+    `Should Earn: ${formatCurrency(data.shouldSalary)} L.E`,
+    `Overtime Pay: ${formatCurrency(data.overTimeSalary)} L.E`,
+    `Your Salary: ${formatCurrency(data.yourSalary)} L.E`,
+  ].join("\n");
+}
+
+/** Copy text to clipboard */
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
+}
+
+/** Feedback flash on copy button */
+function flashCopyBtn(type) {
+  copyBtn.classList.add(type);
+  setTimeout(() => copyBtn.classList.remove(type), 1000);
+}
+
+/** Event listeners */
+
+[dateFrom, dateTo].forEach((el) => el.addEventListener("change", calculate));
+
+[workHoursInput, salaryInput, workedHoursInput, spendTimeInput, nameInput].forEach((el) =>
+  el.addEventListener("keyup", calculate),
+);
+
+copyBtn.addEventListener("click", async () => {
+  if (report) {
+    await copyToClipboard(formatTextReport(report));
+    flashCopyBtn("success");
   } else {
-    btnCopy.classList.add("error");
-    setTimeout(() => {
-      btnCopy.classList.remove("error");
-    }, 1000);
+    flashCopyBtn("error");
   }
 });
 
-holidays.forEach((btn, index) => {
+salaryModeBtns.forEach((btn, i) => {
+  btn.addEventListener("click", () => {
+    salaryModeBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    salaryMode = i === 0 ? "hour" : "month";
+    calculate();
+  });
+});
+
+holidayBtns.forEach((btn, i) => {
   btn.addEventListener("click", () => {
     btn.classList.toggle("active");
-    holidaysObject[index] = !holidaysObject[index];
-    trigerdFunction();
+    holidayMap[i] = !holidayMap[i];
+    calculate();
   });
 });

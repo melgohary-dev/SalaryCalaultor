@@ -1,30 +1,39 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Salary Calcultor</title>
+    <title>Salary Calculator</title>
+    <meta name="description" content="Calculate employee salaries based on work hours, daily rate, holidays, and attendance." />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <header>
-      <h1>Salary Calcultor</h1>
+      <h1>Salary Calculator</h1>
     </header>
-    <div class="main">
+
+    <main class="main">
       <div class="form-group">
         <label>Name</label>
-        <input type="text" id="name" placeholder="Enter employee name" />
+        <input
+          type="text"
+          id="name"
+          placeholder="Enter employee name"
+          autofocus
+        />
       </div>
 
-      <div class="form-group">
-        <label>Start Date</label>
-        <input type="date" id="startDate" />
-      </div>
+      <div class="row">
+        <div class="form-group">
+          <label for="startDate">Start Date</label>
+          <input type="date" id="startDate" />
+        </div>
 
-      <div class="form-group">
-        <label>End Date</label>
-        <input type="date" id="endDate" />
+        <div class="form-group">
+          <label for="endDate">End Date</label>
+          <input type="date" id="endDate" />
+        </div>
       </div>
 
       <div class="form-group">
@@ -39,7 +48,7 @@
 
       <div class="form-group">
         <label>Holidays</label>
-        <div class="holidays">
+        <div class="row holidays">
           <div class="holiday">Sunday</div>
           <div class="holiday">Monday</div>
           <div class="holiday">Tuesday</div>
@@ -51,35 +60,45 @@
       </div>
 
       <div class="form-group">
-        <label>Salary per hour</label>
+        <label>Salary</label>
+        <div class="row salary-modes">
+          <div class="salary-mode active">Per hour</div>
+          <div class="salary-mode">Per Month</div>
+        </div>
         <input type="number" id="Salary" placeholder="Enter Salary" />
       </div>
 
-      <div class="form-group">
-        <label>Worked Hours</label>
-        <input type="number" id="WorkedHours" placeholder="Worked Hours" />
-      </div>
+      <div class="row">
+        <div class="form-group">
+          <label>Worked Hours</label>
+          <input type="number" id="WorkedHours" placeholder="Worked Hours" />
+        </div>
 
-      <div class="form-group">
-        <label>Spent Time</label>
-        <input type="number" id="SpendTime" placeholder="Spent time" />
-      </div>
-    </div>
-
-    <div class="result-contianer">
-      <div class="result-header">
-        <strong>Details :</strong>
-        <div class="btnCopy-container">
-          <button id="btnCopy">copy</button>
+        <div class="form-group">
+          <label>Spent Time</label>
+          <input type="number" id="SpendTime" placeholder="Spent time" />
         </div>
       </div>
-      <div class="result-body">
-        <pre><div id="result"></div></pre>
-      </div>
-    </div>
+
+      <hr />
+
+      <section class="result-container">
+        <div class="result-header">
+          <strong>Details :</strong>
+          <div class="btnCopy-container">
+            <button id="btnCopy">copy</button>
+          </div>
+        </div>
+
+        <div class="result-body">
+          <div id="cards-container" class="cards-container"></div>
+        </div>
+      </section>
+    </main>
 
     <footer>
-      &copy; <strong>Mohammed El-gohary</strong>
+      &copy; <strong>Mohamed Elgohary</strong>
+      2018 ~
       <script>
         document.write(new Date().getFullYear());
       </script>
