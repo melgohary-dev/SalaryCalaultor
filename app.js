@@ -1,9 +1,7 @@
 /** Helpers */
 const formatCurrency = (v) => (Math.round(v * 100) / 100).toFixed(2);
 
-const MS_PER_DAY = 86400000;
 const WEEKS_PER_YEAR = 52;
-const AVG_DAYS_PER_MONTH = 365.25 / 12;
 
 /** DOM refs */
 const dateFrom = document.querySelector("#startDate");
@@ -77,8 +75,7 @@ function getDaysDetails({ from, to, workHours, holidays, Salary, workedHours, sp
     yearlySalary = monthlySalary * 12;
     hourlyRate = yearlySalary / (WEEKS_PER_YEAR * workDaysPerWeek * (+workHours));
 
-    let calendarDays = Math.round((new Date(to) - new Date(from)) / MS_PER_DAY);
-    baseSalary = monthlySalary * (calendarDays / AVG_DAYS_PER_MONTH);
+    baseSalary = hourlyRate * +shouldWork;
   } else {
     hourlyRate = +Salary;
     yearlySalary = hourlyRate * workDaysPerWeek * (+workHours) * WEEKS_PER_YEAR;
